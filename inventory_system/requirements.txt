@@ -1,0 +1,7 @@
+django>=4.2, <5.0
+djangorestframework
+django-filter
+djangorestframework-simplejwt
+psycopg2-binary
+drf-yasg
+django-cors-headers

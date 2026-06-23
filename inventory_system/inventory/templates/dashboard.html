@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>M1 Core Console</title>
+</head>
+<body style="font-family: monospace; background-color: #0f172a; color: #38bdf8; padding: 50px;">
+
+    <h1 style="color: #4ade80;">Server Framework: {{ status }}</h1>
+    <h2>Host Architecture: {{ machine }}</h2>
+    
+    <h3>Restock alert</h3>
+   <ul>
+        {% for item in low_stock_item %}
+            <li style="margin-bottom: 12px; font-size: 1.1em;">
+                <strong>Product:</strong> <span style="color: #cbd5e1;">{{ item.name }}</span> | 
+                <strong>Price:</strong> <span style="color: #a7f3d0;">${{ item.price }}</span> |
+                <strong>Stock:</strong> <span style="color: #fca5a5;">{{ item.quantity }} units left</span>
+            </li>
+        {% endfor %}    
+    </ul>
+    <p>Local Node Sync Time: <strong>{{ host_timestamp }}</strong></p>
+
+    <ul>
+            {% for order in results %}
+                <li>{{ order }}</li>
+            {% endfor %}    
+        </ul>
+
+    <hr style="border-color: #334155;">
+    
+    <div style="background-color: #1e293b; padding: 20px; border-left: 4px solid #4ade80;">
+        <span style="color: #94a3b8;">System Broadcast:</span>
+        <p style="color: #f1f5f9; font-size: 1.1em;">"{{ trainer_msg }}"</p>
+        
+    </div>
+
+</body>
+</html>

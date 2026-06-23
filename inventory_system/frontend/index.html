@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Inventory Command Center</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f6f9; display: flex; height: 100vh; }
+        .sidebar { width: 320px; background-color: #1a365d; color: white; padding: 30px; box-sizing: border-box; box-shadow: 2px 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; justify-content: space-between; }
+        .main-content { flex: 1; padding: 40px; box-sizing: border-box; overflow-y: auto; display: flex; gap: 30px; }
+        .dashboard-section { flex: 1; }
+        h2 { margin-top: 0; color: #fff; border-bottom: 1px solid #2b6cb0; padding-bottom: 10px; }
+        h1 { color: #1a365d; margin-top: 0; }
+        h3 { color: #2c5282; margin-top: 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600; color: #4a5568; }
+        .sidebar label { color: #fff; font-weight: normal; }
+        input[type="text"], input[type="password"], input[type="number"], select { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #cbd5e0; box-sizing: border-box; font-size: 0.95rem; }
+        button { width: 100%; padding: 12px; background-color: #3182ce; border: none; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.2s; font-size: 1rem; }
+        button:hover { background-color: #2b6cb0; }
+        .panel-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .product-card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border-left: 5px solid #3182ce; display: flex; justify-content: space-between; align-items: center; }
+        .price { color: #2c5282; font-weight: bold; font-size: 1.2rem; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; text-align: center; }
+        .authenticated { background-color: #c6f6d5; color: #22543d; }
+        .unauthenticated { background-color: #fed7d7; color: #742a2a; }
+        #logout-btn { background-color: #e53e3e; }
+        #logout-btn:hover { background-color: #c53030; }
+    </style>
+</head>
+<body>
+
+
+    <div class="sidebar">
+        <div>
+            <h2>System Security</h2>
+            <div id="auth-status" class="status-badge unauthenticated">Status: Locked / Logged Out</div>
+            
+            <div id="login-box" style="margin-top: 25px;">
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Admin Username</label>
+                        <input type="text" id="username" required placeholder="e.g., admin">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" required placeholder="••••••••">
+                    </div>
+                    <button type="submit">Execute Secure Login</button>
+                </form>
+            </div>
+        </div>
+
+        <button id="logout-btn" style="display: none;" onclick="handleLogout()">Terminate Session</button>
+    </div>
+
+    <div class="main-content">
+                <div style="position: absolute; top: 20px; right: 40px; display: flex; gap: 15px; align-items: center; z-index: 1000;">
+    <button id="dashboard-btn" onclick="revealDashboardForm()" style="width: auto; padding: 10px 20px; background-color: #2b6cb0; font-size: 0.95rem;">
+        Dashboard View
+    </button>
+</div>
+        
+        <div class="dashboard-section" id="creation-zone" style="display: none;">
+            <div class="panel-card">
+                <h3>Register New Inventory Asset</h3>
+                <form id="asset-form">
+                    <div class="form-group">
+                        <label for="asset-name">Product Name</label>
+                        <input type="text" id="asset-name" required placeholder="e.g., Mechanical Keyboard">
+                    </div>
+                    <div class="form-group">
+                        <label for="asset-price">Unit Price ($)</label>
+                        <input type="number" id="asset-price" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="asset-quantity">Initial Stock Quantity</label>
+                        <input type="number" id="asset-quantity" required placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="asset-category">Relational Category ID Mapping</label>
+                        <select id="asset-category" required>
+                            <option value="1">Category ID 1 (Electronics / Mobile)</option>
+                            <option value="2">Category ID 2 (Office Equipment)</option>
+                        </select>
+                    </div>
+                    <button type="submit" style="background-color: #38a169;">Submit to Save</button>
+                </form>
+            </div>
+            <button id="view-products-btn" style="background-color: rgb(0, 149, 255);">See all Inventory</button>
+        </div>
+        <div class="dashboard-section" style="flex: 1.5;">
+            <h1>Live Inventory Assets</h1>
+            <div id="dashboard-msg" style="color: #718096; margin-bottom: 20px;">Please authenticate to stream data from secure container clusters.</div>
+            <div id="product-container"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE = "http://127.0.0.1:8000/api";
+
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const usernameInput = document.getElementById('username').value;
+            const passwordInput = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/token/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usernameInput, password: passwordInput })
+                });
+
+                if (!response.ok) throw new Error('Invalid credentials');
+                const tokens = await response.json();
+
+                localStorage.setItem('accessToken', tokens.access);
+                localStorage.setItem('refreshToken', tokens.refresh);
+
+                evaluateAuthState();
+            } catch (error) {
+                alert('Authentication Failed: Server rejected user parameters.');
+                console.error(error);
+            }
+        });
+
+            // POST
+        document.getElementById('asset-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const token = localStorage.getItem('accessToken');
+            const payload = {
+                name: document.getElementById('asset-name').value,
+                price: parseFloat(document.getElementById('asset-price').value),
+                quantity: parseInt(document.getElementById('asset-quantity').value),
+                category: parseInt(document.getElementById('asset-category').value)
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/products/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(JSON.stringify(errData));
+                }
+
+
+                document.getElementById('asset-form').reset();
+                
+
+                fetchSecureInventory();
+                
+            } catch (error) {
+                alert(`Write Operation Blocked by Backend Engine: ${error.message}`);
+                console.error('Write transactional failure:', error);
+            }
+        });
+
+        // Function to hide the product list and show the creation form again
+function revealDashboardForm() {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+        alert("Action Locked: Please authenticate first!");
+        return;
+    }
+    document.getElementById('creation-zone').style.display = "block";
+    document.getElementById('product-container').innerHTML = '';
+    document.getElementById('dashboard-msg').innerText = "Active container pipeline streaming verified asset data.";
+}
+
+//showing all products
+let currentNextPageUrl = null;
+let currentPrevPageUrl = null;
+
+// The Master Function: Fetches data from a target URL, renders rows, and configures buttons
+async function fetchAndRenderPaginatedProducts(targetUrl) {
+    const token = localStorage.getItem('accessToken');
+    const container = document.getElementById('product-container');
+    const creationZone = document.getElementById('creation-zone');
+
+    // 1. Hide the registration form container as requested
+    if (creationZone) {
+        creationZone.style.display = "none";
+    }
+
+    if (!token) {
+        alert("Please log in first to access inventory data!");
+        return;
+    }
+
+    container.innerHTML = '<p style="color: #718096;">Streaming page data from PostgreSQL container...</p>';
+
+    try {
+        // 2. Fire the network request to the specified target URL page vector
+        const response = await fetch(targetUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) throw new Error(`Server error status: ${response.status}`);
+
+        const data = await response.json();
+        
+        // 3. Extract pagination control paths passed by Django Rest Framework
+        currentNextPageUrl = data.next;
+        currentPrevPageUrl = data.previous;
+
+        // 4. Paint the Product Item Row list onto the UI grid
+        container.innerHTML = ''; 
+        if (data.results.length === 0) {
+            container.innerHTML = '<p>No assets found inside the database container.</p>';
+            return;
+        }
+
+        data.results.forEach(product => {
+            const card = `
+                <div class="product-card" style="background: white; padding: 20px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border-left: 5px solid #3182ce; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0; color: #2d3748; font-size: 1.1rem;">${product.name}</h4>
+                        <p style="margin: 0; color: #718096; font-size: 0.9rem;">Asset ID: #${product.id} \| Stock: <strong>${product.quantity} units</strong></p>
+                    </div>
+                    <div class="price" style="color: #2c5282; font-weight: bold; font-size: 1.2rem;">$${parseFloat(product.price).toFixed(2)}</div>
+                </div>
+            `;
+            container.innerHTML += card;
+        });
+
+
+        const navControlsHTML = `
+            <div id="pagination-controls" style="display: flex; justify-content: space-between; margin-top: 25px; align-items: center;">
+                <button id="prev-page-btn" style="width: auto; padding: 8px 16px; background-color: #4a5568;" ${!currentPrevPageUrl ? 'disabled style="background-color: #cbd5e0; cursor: not-allowed;"' : ''}>← Previous Page</button>
+                <span style="font-size: 0.9rem; color: #4a5568; font-weight: bold;">Page Matrix Feed</span>
+                <button id="next-page-btn" style="width: auto; padding: 8px 16px; background-color: #4a5568;" ${!currentNextPageUrl ? 'disabled style="background-color: #cbd5e0; cursor: not-allowed;"' : ''}>Next Page →</button>
+            </div>
+        `;
+        container.innerHTML += navControlsHTML;
+
+
+        if (currentPrevPageUrl) {
+            document.getElementById('prev-page-btn').addEventListener('click', () => {
+                fetchAndRenderPaginatedProducts(currentPrevPageUrl);
+            });
+        }
+        if (currentNextPageUrl) {
+            document.getElementById('next-page-btn').addEventListener('click', () => {
+                fetchAndRenderPaginatedProducts(currentNextPageUrl);
+            });
+        }
+
+    } catch (error) {
+        container.innerHTML = '<p style="color: #e53e3e;">Failed to stream data from container backend.</p>';
+        console.error('Pagination network failure:', error);
+    }
+}
+
+document.getElementById('view-products-btn').addEventListener('click', () => {
+    fetchAndRenderPaginatedProducts('http://127.0.0.1:8000/api/products/');
+});
+
+
+
+        async function fetchSecureInventory() {
+            const token = localStorage.getItem('accessToken');
+            const container = document.getElementById('product-container');
+            
+            if (!token) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/products/`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401) {
+                    container.innerHTML = '<p style="color: #e53e3e;">Security Alert: Access Token Expired.</p>';
+                    return;
+                }
+
+                const data = await response.json();
+                container.innerHTML = ''; 
+
+                data.results.forEach(product => {
+                    const card = `
+                        <div class="product-card">
+                            <div>
+                                <h4 style="margin: 0 0 5px 0; color: #2d3748; font-size: 1.1rem;">${product.name}</h4>
+                                <p style="margin: 0; color: #718096; font-size: 0.9rem;">Asset ID Scope: #${product.id} | Stock: <strong>${product.quantity} units</strong></p>
+                            </div>
+                            <div class="price">$${parseFloat(product.price).toFixed(2)}</div>
+                        </div>
+                    `;
+                    container.innerHTML += card;
+                });
+            } catch (error) {
+                console.error('Data pipeline error:', error);
+            }
+        }
+
+
+        function evaluateAuthState() {
+            const accessToken = localStorage.getItem('accessToken');
+            const statusBadge = document.getElementById('auth-status');
+            const loginBox = document.getElementById('login-box');
+            const logoutBtn = document.getElementById('logout-btn');
+            const creationZone = document.getElementById('creation-zone');
+            const msg = document.getElementById('dashboard-msg');
+
+            if (accessToken) {
+                statusBadge.innerText = "Status: Authenticated";
+                statusBadge.className = "status-badge authenticated";
+                loginBox.style.display = "none";
+                logoutBtn.style.display = "block";
+                creationZone.style.display = "block";
+                msg.innerText = "Active container pipeline streaming verified asset data.";
+                fetchSecureInventory(); 
+            } else {
+                statusBadge.innerText = "Status: Locked / Logged Out";
+                statusBadge.className = "status-badge unauthenticated";
+                loginBox.style.display = "block";
+                logoutBtn.style.display = "none";
+                creationZone.style.display = "none";
+                msg.innerText = "Please authenticate to stream data from secure container clusters.";
+                document.getElementById('product-container').innerHTML = '';
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            evaluateAuthState();
+        }
+
+        evaluateAuthState();
+    </script>
+</body>
+</html>
