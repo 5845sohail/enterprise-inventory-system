@@ -26,7 +26,12 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-development-key-for-local-sa
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0' ]
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    'enterprise-inventory-system-1.onrender.com',
+]
 
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5500",
